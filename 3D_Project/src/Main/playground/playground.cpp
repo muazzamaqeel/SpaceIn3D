@@ -1,19 +1,11 @@
 #include "playground.h"
-
-// Include GLFW
 #include <glfw3.h>
 GLFWwindow* window;
-
-// Include standard headers
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-
-// Include GLM
 #include <glm/gtc/matrix_transform.hpp>
 using namespace glm;
-
-// Include chrono for sleep command
 #include <chrono>
 #include <thread>
 
@@ -22,7 +14,6 @@ float g_time = 0.0f; // A global time variable that increases every frame
 const float ORBIT_RADIUS = 5.0f; // Radius of the orbit
 const float ORBIT_SPEED = 1.1f; // Speed of the orbital motion
 const float EARTH_ROTATION_SPEED = 1.02f; // Speed of the Earth's rotation on its axis
-
 int main(void)
 {
     //Initialize window
@@ -127,7 +118,7 @@ bool initializeWindow()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Open a window and create its OpenGL context
-    window = glfwCreateWindow(1024, 768, "Example: 3D Model with basic shading", NULL, NULL);
+    window = glfwCreateWindow(1024, 768, "Space in 3D", NULL, NULL);
     if (window == NULL) {
         fprintf(stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n");
         getchar();
@@ -135,8 +126,6 @@ bool initializeWindow()
         return false;
     }
     glfwMakeContextCurrent(window);
-
-    // Initialize GLEW
     glewExperimental = true; // Needed for core profile
     if (glewInit() != GLEW_OK) {
         fprintf(stderr, "Failed to initialize GLEW\n");
@@ -144,7 +133,6 @@ bool initializeWindow()
         glfwTerminate();
         return false;
     }
-
     // Ensure we can capture the escape key being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
@@ -157,81 +145,51 @@ static float rotationAngle = 0.0f; // This will be incremented over time to rota
 
 bool updateMVPTransformation()
 {
-    // Projection matrix remains unchanged
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
-
-    // Camera matrix needs to include the zoom variable
     glm::mat4 View = glm::lookAt(
         glm::vec3(0, 0, 15 + zoom), // Add the zoom variable here
         glm::vec3(0, 0, 0),         // Looks at the origin
         glm::vec3(0, 1, 0)          // Up vector
     );
-
-    // Calculate the orbit translation
     float orbitAngle = g_time * ORBIT_SPEED;
     float x = ORBIT_RADIUS * cos(orbitAngle);
     float z = ORBIT_RADIUS * sin(orbitAngle);
     glm::mat4 OrbitTranslation = glm::translate(glm::mat4(1.0f), glm::vec3(x, 0, z));
-
-
-
     glm::mat4 RotationMatrix = glm::rotate(glm::mat4(1.0f), g_time * EARTH_ROTATION_SPEED, glm::vec3(0, 1, 0));
-
-    // Combine the orbit translation and rotation
     glm::mat4 Model = OrbitTranslation * RotationMatrix;
+    MVP = Projection * View * Model;
+    MV = View * Model;
 
-    // Our ModelViewProjection : multiplication of our 3 matrices
-    MVP = Projection * View * Model; // Remember, matrix multiplication is the other way around
-    MV = View * Model; // We also need MV in the shader to transform the light position
-
-    // Update the uniform values
     glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
     glUniformMatrix4fv(MatrixIDMV, 1, GL_FALSE, &MV[0][0]);
-
-    // Increment the global time
-    g_time += 0.02f; // Increment time by a constant amount. This should ideally be tied to frame time
-
+    g_time += 0.02f; // Increment time by a constant amount. This should ideally be tied to frame 
     return true;
 }
-
-
 bool initializeVertexbuffer()
 {
     textureSamplerID = glGetUniformLocation(programID, "myTextureSampler");
     //this is only used for loading the uvs
     bool res = loadOBJ("earth.obj", vertices, uvs, normals);
-
     sphere = RenderingObject();
     sphere.InitializeVAO();
     glGenVertexArrays(1, &VertexArrayID);
     glBindVertexArray(VertexArrayID);
-
-    //create vertex and normal data
     std::vector< glm::vec3 > vertices = std::vector< glm::vec3 >();
     std::vector< glm::vec3 > normals = std::vector< glm::vec3 >();
     loadSTLFile(vertices, normals, "newsphere.stl");
-
     vertexbuffer_size = vertices.size() * sizeof(glm::vec3);
-
     sphere.SetVertices(vertices);
     sphere.computeVertexNormalsOfTriangles(vertices, normals);
     sphere.SetNormals(normals);
-
     sphere.textureSamplerID = glGetUniformLocation(programID, "myTextureSampler");
     float scaling = 1.0f;
     std::vector< glm::vec2 > uvbufferdata = uvs;
     sphere.SetTexture(uvbufferdata, "earthtexture.bmp");
-    
-
-    glGenBuffers(2, vertexbuffer); //generate two buffers, one for the vertices, one for the normals
-
-    ////fill first buffer (vertices)
+    glGenBuffers(2, vertexbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[0]);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-    ////fill second buffer (normals)
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
     glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
     glEnableVertexAttribArray(1);
@@ -242,9 +200,7 @@ bool initializeVertexbuffer()
 
 
 bool cleanupVertexbuffer()
-{
-    // Cleanup VBO
-    glDeleteBuffers(2, vertexbuffer);
+{    glDeleteBuffers(2, vertexbuffer);
     glDeleteBuffers(1, &uvbuffer);
     glDeleteProgram(programID);
     glDeleteTextures(1, &Texture);
@@ -257,7 +213,6 @@ bool closeWindow()
     glfwTerminate();
     return true;
 }
-
 void loadSTLFile(std::vector< glm::vec3 >& vertices,
     std::vector< glm::vec3 >& normals,
     std::string stl_file_name)
@@ -269,13 +224,10 @@ void loadSTLFile(std::vector< glm::vec3 >& vertices,
         glm::vec3 triangleNormal = glm::vec3(t.normal.x,
             t.normal.y,
             t.normal.z);
-        //add vertex and normal for point 1:
         vertices.push_back(glm::vec3(t.v1.x, t.v1.y, t.v1.z));
         normals.push_back(triangleNormal);
-        //add vertex and normal for point 2:
         vertices.push_back(glm::vec3(t.v2.x, t.v2.y, t.v2.z));
         normals.push_back(triangleNormal);
-        //add vertex and normal for point 3:
         vertices.push_back(glm::vec3(t.v3.x, t.v3.y, t.v3.z));
         normals.push_back(triangleNormal);
     }
