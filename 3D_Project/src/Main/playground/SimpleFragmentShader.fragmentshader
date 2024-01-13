@@ -21,7 +21,7 @@ void main()
   
   //Material parameters
   vec3 materialColor = texture( myTextureSampler, UV ).rgb;
-  float ka = 0.1;
+  float ka = 0.6;
   float ks = 1.0;
   float kd = 1.0;
   float shininess = 80.0;

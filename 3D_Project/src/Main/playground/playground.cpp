@@ -80,8 +80,8 @@ void updateAnimationLoop()
     glUseProgram(programID);
 
     // Update the variables for movement / rotation if a key was pressed
-    if (glfwGetKey(window, GLFW_KEY_W)) zoom -= 0.5;
-    else if (glfwGetKey(window, GLFW_KEY_S)) zoom += 0.5;
+    if (glfwGetKey(window, GLFW_KEY_W)) zoom -= 1.5;
+    else if (glfwGetKey(window, GLFW_KEY_S)) zoom += 1.5;
     else if (glfwGetKey(window, GLFW_KEY_A)) curr_angle -= 0.02;
     else if (glfwGetKey(window, GLFW_KEY_D)) curr_angle += 0.02;
     else if (glfwGetKey(window, GLFW_KEY_R)) toggleRot = !toggleRot;
@@ -152,33 +152,33 @@ bool initializeWindow()
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     return true;
 }
+static float rotationAngle = 0.0f; // This will be incremented over time to rotate the Earth
 
 
 bool updateMVPTransformation()
 {
-    // Projection matrix : 45° Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
+    // Projection matrix remains unchanged
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
 
-    // Camera matrix
+    // Camera matrix needs to include the zoom variable
     glm::mat4 View = glm::lookAt(
-        glm::vec3(0, 0, 20), // Camera is at (0,0,20), in World Space
-        glm::vec3(0, 0, 0), // and looks at the origin
-        glm::vec3(0, 1, 0)  // Head is up (set to 0,-1,0 to look upside-down)
+        glm::vec3(0, 0, 15 + zoom), // Add the zoom variable here
+        glm::vec3(0, 0, 0),         // Looks at the origin
+        glm::vec3(0, 1, 0)          // Up vector
     );
 
-    // Model matrix for the Earth's rotation around its axis
-    glm::mat4 Rotation = glm::rotate(glm::mat4(1.0f), g_time * EARTH_ROTATION_SPEED, glm::vec3(0, 1, 0));
-
-    // Compute the Earth's position in its orbit
+    // Calculate the orbit translation
     float orbitAngle = g_time * ORBIT_SPEED;
     float x = ORBIT_RADIUS * cos(orbitAngle);
     float z = ORBIT_RADIUS * sin(orbitAngle);
-
-    // Model matrix for the Earth's orbit
     glm::mat4 OrbitTranslation = glm::translate(glm::mat4(1.0f), glm::vec3(x, 0, z));
 
-    // Combine the rotation and translation
-    glm::mat4 Model = OrbitTranslation * Rotation;
+
+
+    glm::mat4 RotationMatrix = glm::rotate(glm::mat4(1.0f), g_time * EARTH_ROTATION_SPEED, glm::vec3(0, 1, 0));
+
+    // Combine the orbit translation and rotation
+    glm::mat4 Model = OrbitTranslation * RotationMatrix;
 
     // Our ModelViewProjection : multiplication of our 3 matrices
     MVP = Projection * View * Model; // Remember, matrix multiplication is the other way around
