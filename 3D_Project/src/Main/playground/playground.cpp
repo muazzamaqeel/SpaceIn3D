@@ -18,6 +18,10 @@ using namespace glm;
 #include <thread>
 
 #include <common/shader.hpp>
+float g_time = 0.0f; // A global time variable that increases every frame
+const float ORBIT_RADIUS = 5.0f; // Radius of the orbit
+const float ORBIT_SPEED = 1.1f; // Speed of the orbital motion
+const float EARTH_ROTATION_SPEED = 1.02f; // Speed of the Earth's rotation on its axis
 
 int main(void)
 {
@@ -150,37 +154,46 @@ bool initializeWindow()
 }
 
 
-
 bool updateMVPTransformation()
 {
     // Projection matrix : 45° Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-    glm::mat4 Projection = glm::perspective(glm::radians(30.0f), 4.0f / 3.0f, 0.1f, 10000.0f);
+    glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
 
-    // Camera matrix (modify this to let the camera move)
+    // Camera matrix
     glm::mat4 View = glm::lookAt(
-        glm::vec3(0, 0, zoom), // Camera is at (0,0,0), in World Space
+        glm::vec3(0, 0, 20), // Camera is at (0,0,20), in World Space
         glm::vec3(0, 0, 0), // and looks at the origin
         glm::vec3(0, 1, 0)  // Head is up (set to 0,-1,0 to look upside-down)
     );
 
-    // Model matrix, example with 3 parameters (curr_angle, curr_x, curr_y)
-    glm::mat4 Model = glm::mat4(1.0f); //start with identity matrix
-    //initial sphere rotations 
-    Model = glm::rotate(Model, -1.5708f, glm::vec3(1.0f, 0.0f, 0.0f)); //apply orientation (last parameter: axis)
-    Model = glm::rotate(Model, 0.401426f, glm::vec3(0.0f, 1.0f, 0.0f)); //apply orientation (last parameter: axis)
+    // Model matrix for the Earth's rotation around its axis
+    glm::mat4 Rotation = glm::rotate(glm::mat4(1.0f), g_time * EARTH_ROTATION_SPEED, glm::vec3(0, 1, 0));
 
-    //earth rotation
-    Model = glm::rotate(Model, curr_angle, glm::vec3(0.0f, 0.0f, 1.0f)); //apply orientation (last parameter: axis)
+    // Compute the Earth's position in its orbit
+    float orbitAngle = g_time * ORBIT_SPEED;
+    float x = ORBIT_RADIUS * cos(orbitAngle);
+    float z = ORBIT_RADIUS * sin(orbitAngle);
 
+    // Model matrix for the Earth's orbit
+    glm::mat4 OrbitTranslation = glm::translate(glm::mat4(1.0f), glm::vec3(x, 0, z));
 
-    Model = glm::translate(Model, glm::vec3(curr_x, curr_y, 0.0f)); //apply translation
+    // Combine the rotation and translation
+    glm::mat4 Model = OrbitTranslation * Rotation;
 
     // Our ModelViewProjection : multiplication of our 3 matrices
     MVP = Projection * View * Model; // Remember, matrix multiplication is the other way around
-    MV = View * Model; //We also need MV in the shader to transform the light position
+    MV = View * Model; // We also need MV in the shader to transform the light position
+
+    // Update the uniform values
+    glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+    glUniformMatrix4fv(MatrixIDMV, 1, GL_FALSE, &MV[0][0]);
+
+    // Increment the global time
+    g_time += 0.02f; // Increment time by a constant amount. This should ideally be tied to frame time
 
     return true;
 }
+
 
 bool initializeVertexbuffer()
 {
