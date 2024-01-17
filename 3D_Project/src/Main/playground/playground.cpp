@@ -9,9 +9,14 @@ using namespace glm;
 #include <chrono>
 #include <thread>
 
+
+
+
 #include <common/shader.hpp>
 float g_time = 0.0f; // A global time variable that increases every frame
 const float ORBIT_RADIUS = 5.0f; // Radius of the orbit
+
+const float SELF_ROTATION_SPEED = 2.5f; // Adjust this value to control the speed of self-rotation
 const float ORBIT_SPEED = 1.1f; // Speed of the orbital motion
 const float EARTH_ROTATION_SPEED = 1.02f; // Speed of the Earth's rotation on its axis
 int main(void)
@@ -57,6 +62,8 @@ int main(void)
 
     return 0;
 }
+
+
 
 
 
@@ -145,26 +152,48 @@ static float rotationAngle = 0.0f; // This will be incremented over time to rota
 
 bool updateMVPTransformation()
 {
+    // Setup Projection matrix: This defines the perspective projection characteristics (like field of view)
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
+
+    // Setup View matrix: This defines the position and orientation of the camera
     glm::mat4 View = glm::lookAt(
-        glm::vec3(0, 0, 15 + zoom), // Add the zoom variable here
-        glm::vec3(0, 0, 0),         // Looks at the origin
+        glm::vec3(0, 0, 15 + zoom), // Camera position with added zoom
+        glm::vec3(0, 0, 0),         // Look at point (the origin)
         glm::vec3(0, 1, 0)          // Up vector
     );
+
+    // Calculate orbit position
     float orbitAngle = g_time * ORBIT_SPEED;
     float x = ORBIT_RADIUS * cos(orbitAngle);
     float z = ORBIT_RADIUS * sin(orbitAngle);
     glm::mat4 OrbitTranslation = glm::translate(glm::mat4(1.0f), glm::vec3(x, 0, z));
-    glm::mat4 RotationMatrix = glm::rotate(glm::mat4(1.0f), g_time * EARTH_ROTATION_SPEED, glm::vec3(0, 1, 0));
-    glm::mat4 Model = OrbitTranslation * RotationMatrix;
+
+    // Rotation for the Earth's orbit
+    glm::mat4 OrbitRotationMatrix = glm::rotate(glm::mat4(1.0f), g_time * EARTH_ROTATION_SPEED, glm::vec3(0, 1, 0));
+
+    // New rotation matrix for Earth's self rotation
+    glm::mat4 SelfRotationMatrix = glm::rotate(glm::mat4(1.0f), g_time * SELF_ROTATION_SPEED, glm::vec3(0, 1, 0));
+
+    // Combine both rotations
+    glm::mat4 CombinedRotation = OrbitRotationMatrix * SelfRotationMatrix;
+
+    // Combine all transformations for the model
+    glm::mat4 Model = OrbitTranslation * CombinedRotation;
+
+    // Combine Model, View, and Projection matrices to create the final MVP matrix
     MVP = Projection * View * Model;
     MV = View * Model;
 
+    // Update uniforms in the shader program
     glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
     glUniformMatrix4fv(MatrixIDMV, 1, GL_FALSE, &MV[0][0]);
-    g_time += 0.02f; // Increment time by a constant amount. This should ideally be tied to frame 
+
+    // Increment time by a constant amount (frame rate independent movement would require delta time calculation)
+    g_time += 0.02f;
+
     return true;
 }
+
 bool initializeVertexbuffer()
 {
     textureSamplerID = glGetUniformLocation(programID, "myTextureSampler");
