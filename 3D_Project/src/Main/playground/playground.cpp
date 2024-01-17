@@ -8,10 +8,6 @@ GLFWwindow* window;
 using namespace glm;
 #include <chrono>
 #include <thread>
-
-
-
-
 #include <common/shader.hpp>
 float g_time = 0.0f; // A global time variable that increases every frame
 const float ORBIT_RADIUS = 5.0f; // Radius of the orbit
